@@ -20,32 +20,20 @@ async def reminder_worker(bot):
                 reminder_id = reminder[0]
                 user_id = reminder[1]
                 text = reminder[2]
-                await bot.send_message(reminder["user_id"], reminder["text"])
-                delete_reminder(reminder["id"])
+                
+                await bot.send_message(
+                    user_id,
+                    f"⏰ Напоминание:\n{text}"
+                )
+
+                delete_reminder(reminder_id)
             except Exception as e:
                 print("Ошибка:", e)
 
         await asyncio.sleep(10)
 
 
-#async def reminder_worker(bot):     #напоминания 
-    #while True:
-        #now = datetime.now()
 
-        #reminders = get_due_reminders(now)
-
-        #for reminder_id, user_id, text in reminders:
-            #try:
-                #await bot.send_message(
-                   # user_id,
-                   # f"⏰ Напоминание:\n{text}"
-               # )
-           # except:
-              #  pass
-
-           # delete_reminder(reminder_id)
-
-     #   await asyncio.sleep(5)
 
 PREDICTIONS = [
     "Сегодня тебе повезёт 🍀",
