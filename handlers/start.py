@@ -336,6 +336,12 @@ class ReminderState(StatesGroup):
     time = State()
     text = State()
 @router.message(Command("remind"))
+async def start_reminder(message: Message, state: FSMContext):
+    await message.answer("Введи дату (пример: 04.05.2002)")    #выбор даты 
+    await state.set_state(ReminderState.date)
+
+
+
 @router.message(lambda msg: msg.text == "Напоминание⏰")    #старт комнды напоминания 
 async def start_reminder(message: Message, state: FSMContext):
     await message.answer("Введи дату (пример: 04.05.2002)")    #выбор даты 
