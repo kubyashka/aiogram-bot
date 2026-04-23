@@ -14,6 +14,21 @@ from handlers.start import phrase_sender   #фразочки
 from db import init_db  #из файл базы даннх 
 from worker import reminder_worker    #напоминалка из фоного
 from worker import prediction_worker    #предсказания из фоного 
+from fastapi import FastAPI  #что б сервер не засыпал
+import threading   #чтоб сервер не засыпал
+import uvicorn    #чтоб сервер не засыпал
+
+app = FastAPI()         #для сервера или сайта чтоб бот не засыпал 
+
+@app.get("/")           #для сервера или сайта чтоб бот не засыпал 
+def home():
+    return {"status": "bot is alive 🚀"}
+
+def run_web():
+    uvicorn.run(app, host="0.0.0.0", port=8080)
+
+threading.Thread(target=run_web).start()
+
 
 
 load_dotenv()    #будет доставлять из секретного .env
@@ -45,17 +60,3 @@ async def main():
 if __name__ == '__main__':                       #запуск
     asyncio.run(main())
     
-#для сервера или сайта чтоб бот не засыпал 
-from flask import Flask
-import threading
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Bot is alive"
-
-def run():
-    app.run(host="0.0.0.0", port=8080)
-
-threading.Thread(target=run).start()
