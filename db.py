@@ -1,6 +1,12 @@
 #база данных для напоминалки , чтоб бот запоминал 
-
+import os
 import sqlite3
+import psycopg2
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+conn = psycopg2.connect(DATABASE_URL)
+cur = conn.cursor()
 
 conn = sqlite3.connect("bot.db", check_same_thread=False)
 cursor = conn.cursor()
