@@ -345,32 +345,67 @@ class ReminderState(StatesGroup):
     date = State()
     time = State()
     text = State()
+
+@router.message(lambda msg: msg.text and msg.text.startswith("/"))
+async def reset_state_on_any_command(message: Message, state: FSMContext):
+    await state.clear()
+@router.message(lambda msg: msg.text == "❌ Отмена")
+async def cancel(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("❌ Операция отменена")
+
 @router.message(Command("remind"))
-async def start_reminder(message: Message, state: FSMContext):
-    await message.answer("Введи дату (пример: 04.05.2002)")    #выбор даты 
+async def start_reminder_cmd(message: Message, state: FSMContext):
+    await state.clear()
     await state.set_state(ReminderState.date)
+    await message.answer("Введи дату (пример: 04.05.2002)")    #выбор даты 
+    
 
 
 
 @router.message(lambda msg: msg.text == "⏰ Напомнить")    #старт комнды напоминания 
-async def start_reminder(message: Message, state: FSMContext):
-    await message.answer("Введи дату (пример: 04.05.2002)")    #выбор даты 
+async def start_reminder_btn(message: Message, state: FSMContext):
+    await state.clear()
     await state.set_state(ReminderState.date)
+    await message.answer("📅Введи дату (пример: 04.05.2002)")    #выбор даты 
+   
+
 
 @router.message(ReminderState.date)
 async def get_date(message: Message, state: FSMContext):
+    try:
+        datetime.strptime(message.text, "%d.%m.%Y")
+    except:
+        await message.answer("❌ Неверная дата. Пример: 04.05.2026")
+        return
+
     await state.update_data(date=message.text)
-    await message.answer("Теперь время (пример: 18:30)")   #выбор вренени 
     await state.set_state(ReminderState.time)
+
+    await message.answer("Теперь время (пример: 18:30)")   #выбор вренени 
+    
+
+    
+
 
 @router.message(ReminderState.time)
 async def get_time(message: Message, state: FSMContext):
+    try:
+        datetime.strptime(message.text, "%H:%M")
+    except:
+        await message.answer("❌ Неверное время. Пример: 18:30")
+        return
+
     await state.update_data(time=message.text)
-    await message.answer("Что напомнить?")
     await state.set_state(ReminderState.text)
+
+
+    await message.answer("📝Что напомнить?")
+    
 
 @router.message(ReminderState.text)
 async def save_reminder(message: Message, state: FSMContext):
+    
     data = await state.get_data()
 
     try:
@@ -379,7 +414,7 @@ async def save_reminder(message: Message, state: FSMContext):
             "%d.%m.%Y %H:%M"
         )
     except:
-        await message.answer("Ошибка формата 😢 Попробуй заново")
+        await message.answer("❌ Ошибка даты/времени")
         return
 
     add_reminder(
@@ -388,8 +423,12 @@ async def save_reminder(message: Message, state: FSMContext):
         remind_at=remind_at
     )
 
-    await message.answer("Напоминание сохранено ✅")
     await state.clear()
+    await message.answer("✅ Напоминание сохранено")
+    
+
+
+
 
 from db import get_due_reminders, delete_reminder
 

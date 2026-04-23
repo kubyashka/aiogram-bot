@@ -9,7 +9,7 @@ from handlers.start import router, photo_sender     #добавила старт
 import os
 #from handlers.start import photo_sender
 from handlers.start import load_photos
-from handlers.start import init_db
+#from handlers.start import init_db
 from handlers.start import phrase_sender   #фразочки 
 from db import init_db  #из файл базы даннх 
 from worker import reminder_worker    #напоминалка из фоного
@@ -36,8 +36,6 @@ threading.Thread(target=run_web).start()
 
 
 
-#subscribers = set()  # или твоя загрузка из файла
-
 
 
 async def main():
@@ -50,11 +48,12 @@ async def main():
 
 
     load_photos()       #загружает фото в память бота 
+    print("Бот запущен🚀")
     asyncio.create_task(phrase_sender(bot))  #отправляет фразочки пользователям
     asyncio.create_task(prediction_worker(bot))   #отправляет предсказания 
     asyncio.create_task(reminder_worker(bot)) #отправляет напоминание 
     asyncio.create_task(photo_sender(bot)) # отправляет фото пользователям 
-    print("Бот запущен🚀")
+    
     await dp.start_polling(bot)   #запуск
     
     

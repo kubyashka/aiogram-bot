@@ -12,7 +12,10 @@ async def reminder_worker(bot):
         print("worker работает...")  # 👈 добавь
         now = datetime.now()
         reminders = get_due_reminders(now)
-
+        
+        
+        
+        
         print("найдено:", reminders)  # 👈 добавь
 
         for reminder in reminders:
