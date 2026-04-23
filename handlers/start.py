@@ -266,6 +266,13 @@ async def unsubscribe_btn(message: Message):
 #==================================================================================================
 # 🔹предсказания 
 
+@router.message(lambda message: message.text == "🔮 Предсказание")
+async def get_prediction(message: Message):
+    prediction = "Сегодня тебя ждёт приятный сюрприз ✨"
+    await message.answer(prediction)
+
+
+
 @router.message(Command("predictions"))
 async def start(message: Message):
     subscribe_user(message.from_user.id)
