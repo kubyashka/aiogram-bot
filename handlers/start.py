@@ -122,11 +122,18 @@ async def game_btn(message: Message, state: FSMContext):
 # 📸 Рандомное фото и время 
 # ========================
 SEND_TIMES = [    #конкретное время отправки фоток
-    time(10, 0),
+    time(10, 30),
     time(12, 30),
-    time(14, 0),
-    time(18, 30),
-    time(20, 0)
+    time(13, 30),
+    time(14, 30),
+    time(15, 0),
+    time(16, 27),
+    time(17, 38),
+    time(20, 0),
+
+
+
+
 ]
 
 all_photos = []
@@ -204,9 +211,12 @@ async def photo_sender(bot: Bot):
 #---------рассылка фразочек-------------- 
 
 PHRASE_TIMES = [
-    time(9, 0),
+    time(10, 0),
     time(13, 0),
+    time(14, 0),
     time(19, 0),
+    time(21, 0),
+
 ]
 def get_random_phrase():
     return random.choice(PHRASES)
@@ -342,7 +352,7 @@ async def start_reminder(message: Message, state: FSMContext):
 
 
 
-@router.message(lambda msg: msg.text == "Напоминание⏰")    #старт комнды напоминания 
+@router.message(lambda msg: msg.text == "⏰ Напомнить")    #старт комнды напоминания 
 async def start_reminder(message: Message, state: FSMContext):
     await message.answer("Введи дату (пример: 04.05.2002)")    #выбор даты 
     await state.set_state(ReminderState.date)

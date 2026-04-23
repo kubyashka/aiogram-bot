@@ -18,6 +18,11 @@ from fastapi import FastAPI  #что б сервер не засыпал
 import threading   #чтоб сервер не засыпал
 import uvicorn    #чтоб сервер не засыпал
 
+load_dotenv()    #будет доставлять из секретного .env
+TOKEN = getenv('BOT_TOKEN')
+
+
+
 app = FastAPI()         #для сервера или сайта чтоб бот не засыпал 
 
 @app.get("/")           #для сервера или сайта чтоб бот не засыпал 
@@ -30,9 +35,6 @@ def run_web():
 threading.Thread(target=run_web).start()
 
 
-
-load_dotenv()    #будет доставлять из секретного .env
-TOKEN = getenv('BOT_TOKEN')
 
 #subscribers = set()  # или твоя загрузка из файла
 

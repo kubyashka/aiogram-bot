@@ -7,24 +7,45 @@ from db import get_subscribers, already_sent_today, mark_sent
 import random
 import logging
 
-async def reminder_worker(bot):     #напоминания 
+async def reminder_worker(bot):
     while True:
+        print("worker работает...")  # 👈 добавь
         now = datetime.now()
-
         reminders = get_due_reminders(now)
 
-        for reminder_id, user_id, text in reminders:
+        print("найдено:", reminders)  # 👈 добавь
+
+        for reminder in reminders:
             try:
-                await bot.send_message(
-                    user_id,
-                    f"⏰ Напоминание:\n{text}"
-                )
-            except:
-                pass
+                reminder_id = reminder[0]
+                user_id = reminder[1]
+                text = reminder[2]
+                await bot.send_message(reminder["user_id"], reminder["text"])
+                delete_reminder(reminder["id"])
+            except Exception as e:
+                print("Ошибка:", e)
 
-            delete_reminder(reminder_id)
+        await asyncio.sleep(10)
 
-        await asyncio.sleep(5)
+
+#async def reminder_worker(bot):     #напоминания 
+    #while True:
+        #now = datetime.now()
+
+        #reminders = get_due_reminders(now)
+
+        #for reminder_id, user_id, text in reminders:
+            #try:
+                #await bot.send_message(
+                   # user_id,
+                   # f"⏰ Напоминание:\n{text}"
+               # )
+           # except:
+              #  pass
+
+           # delete_reminder(reminder_id)
+
+     #   await asyncio.sleep(5)
 
 PREDICTIONS = [
     "Сегодня тебе повезёт 🍀",
