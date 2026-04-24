@@ -12,7 +12,6 @@ from handlers.start import load_photos
 #from handlers.start import init_db
 from handlers.start import phrase_sender   #фразочки 
 from db import init_db  #из файл базы даннх 
-from worker import reminder_worker    #напоминалка из фоного
 from worker import prediction_worker    #предсказания из фоного 
 from fastapi import FastAPI  #что б сервер не засыпал
 import threading   #чтоб сервер не засыпал
@@ -51,7 +50,7 @@ async def main():
     print("Бот запущен🚀")
     asyncio.create_task(phrase_sender(bot))  #отправляет фразочки пользователям
     asyncio.create_task(prediction_worker(bot))   #отправляет предсказания 
-    asyncio.create_task(reminder_worker(bot)) #отправляет напоминание 
+    
     asyncio.create_task(photo_sender(bot)) # отправляет фото пользователям 
     
     await dp.start_polling(bot)   #запуск

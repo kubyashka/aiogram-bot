@@ -2,39 +2,14 @@
 #фоновая задача 
 import asyncio
 from datetime import datetime
-from db import get_due_reminders, delete_reminder
+#from db import get_due_reminders, delete_reminder
 from db import get_subscribers, already_sent_today, mark_sent
 import random
 import logging
+from zoneinfo import ZoneInfo  #для сервера что б он видел наш часовой пояс 
 
-async def reminder_worker(bot):
-    while True:
-        print("worker работает...")  # 👈 добавь
-        now = datetime.now()
-        reminders = get_due_reminders(now)
-        
-        
-        
-        
-        print("найдено:", reminders)  # 👈 добавь
 
-        for reminder in reminders:
-            try:
-                reminder_id = reminder[0]
-                user_id = reminder[1]
-                text = reminder[2]
-                
-                await bot.send_message(
-                    user_id,
-                    f"⏰ Напоминание:\n{text}"
-                )
-
-                delete_reminder(reminder_id)
-            except Exception as e:
-                print("Ошибка:", e)
-
-        await asyncio.sleep(10)
-
+tz = ZoneInfo("Asia/Almaty")
 
 
 
@@ -122,31 +97,22 @@ PREDICTIONS = [
     "Ты сможешь найти в себе что-то, что пора усовершенствовать💪"]
 
     
-    
-    
-
-
-
-
-
-
-async def prediction_worker(bot):    #предсказания 
+async def prediction_worker(bot):
     while True:
-        now = datetime.now()
+        now = datetime.now(tz)
         today = now.strftime("%Y-%m-%d")
 
-        # отправляем раз в день в 09:00
         if now.hour == 9 and now.minute == 0:
 
             subs = get_subscribers()
 
-            for (user_id,) in subs:
+            for user_id in subs:
 
-                # ❗ защита от повторной отправки
+                # защита от повторной отправки
                 if already_sent_today(user_id, today):
                     continue
-             
-            try:
+
+                try:
                     if not PREDICTIONS:
                         logging.error("PREDICTIONS is empty!")
                         continue
@@ -166,9 +132,17 @@ async def prediction_worker(bot):    #предсказания
 
                     mark_sent(user_id, today)
 
-            except Exception as e:
+                except Exception as e:
                     logging.error(f"Send failed for {user_id}: {e}")
 
             await asyncio.sleep(60)
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(5)    
+    
+
+
+
+
+
+
+

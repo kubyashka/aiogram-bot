@@ -19,14 +19,6 @@ def init_db():
         )
     """)
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS reminders (
-            id SERIAL PRIMARY KEY,
-            user_id BIGINT,
-            text TEXT,
-            remind_at TIMESTAMP
-        )
-    """)
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS sent_predictions (
@@ -57,27 +49,7 @@ def get_subscribers():
     cur.execute("SELECT user_id FROM subscribers")
     return [row[0] for row in cur.fetchall()]
 
-# ---------------- REMINDERS ----------------
-def add_reminder(user_id, text, remind_at):
-    cur.execute("""
-        INSERT INTO reminders (user_id, text, remind_at)
-        VALUES (%s, %s, %s)
-    """, (user_id, text, remind_at))
-    conn.commit()
 
-def get_due_reminders(now):
-    cur.execute("""
-        SELECT id, user_id, text
-        FROM reminders
-        WHERE remind_at <= %s
-    """, (now,))
-    return cur.fetchall()
-
-def delete_reminder(reminder_id):
-    cur.execute("""
-        DELETE FROM reminders WHERE id = %s
-    """, (reminder_id,))
-    conn.commit()
 
 # ---------------- PREDICTIONS ----------------
 def already_sent_today(user_id, date):

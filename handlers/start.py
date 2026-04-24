@@ -11,13 +11,17 @@ import os
 import random
 from datetime import datetime, time   
 from texts.phrases import PHRASES   #берет фразы из папки и вставляет в переменную
-from db import add_reminder   #база данных
+#from db import add_reminder   #база данных
 from db import subscribe_user, unsubscribe_user  #база данных
 from aiogram.fsm.state import StatesGroup, State    #для игры в угадай число 
+from zoneinfo import ZoneInfo   #для сервера что б он видел наш часовой пояс 
+
 
 
 
 router = Router()
+
+tz = ZoneInfo("Asia/Almaty")   #для нашего часового пояса 
 
 
 PHOTOS_PATH = "photos"      
@@ -67,7 +71,7 @@ async def get_subscribers():     #получение подписчиков
 main_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📩 Подписаться"), KeyboardButton(text="❌ Отписаться")],
-        [KeyboardButton(text="🔮 Предсказание"), KeyboardButton(text="⏰ Напомнить")],
+        [KeyboardButton(text="🔮 Предсказание"), KeyboardButton(text="Угадай число")],
         [KeyboardButton(text="🙈 Скрыть меню"),KeyboardButton(text="🎮 Игра")]
     ],
     resize_keyboard=True
@@ -114,9 +118,7 @@ async def subscribe_btn(message: Message):
         await message.answer("Не удалось отправить фото 😢")
         print(e)
 
-@router.message(lambda m: m.text == "🎮 Игра")
-async def game_btn(message: Message, state: FSMContext):
-    await start_game(message, state)
+
 
 # ==================================================================================================================
 # 📸 Рандомное фото и время 
@@ -177,7 +179,7 @@ async def photo_sender(bot: Bot):
     already_sent = set()
 
     while True:
-        now = datetime.now()
+        now = datetime.now(tz)
 
         subscribers = await get_subscribers()
 
@@ -225,7 +227,7 @@ async def phrase_sender(bot: Bot):
     already_sent = set()
 
     while True:
-        now = datetime.now()
+        now = datetime.now(tz)
 
         subscribers = await get_subscribers()
 
@@ -293,12 +295,19 @@ async def start(message: Message):
 #---------------------
 #игра в угадай число
 #----------------------------------------
+@router.message(lambda m: m.text == "Угадай число")
+async def game_btn(message: Message, state: FSMContext):
+    if await state.get_state():
+        await message.answer("Ты уже в игре 😄")
+        return
+    
+
 
 class GuessGame(StatesGroup):
     playing = State()
 
-@router.message(Command("game"))
-async def start_game(message: Message, state: FSMContext):
+@router.message(Command("guess"))
+async def start_guess(message: Message, state: FSMContext):
     number = random.randint(1, 100)
 
     await state.update_data(secret_number=number)
@@ -337,103 +346,183 @@ async def stop_game(message: Message, state: FSMContext):
 
 
 #==================================================================================================
-# 🔹 Напоминание 
+# 🔹 хоррор игра с сюжетом 
 
-from aiogram.fsm.state import StatesGroup, State
+@router.message(Command("game"))
+@router.message(F.text == "🎮 Игра")
+async def start_game_handler(message: Message, state: FSMContext):
+    await start_scene(message, state)
 
-class ReminderState(StatesGroup):
-    date = State()
-    time = State()
-    text = State()
+    await message.bot.send_chat_action(message.chat.id, "typing")
+    await message.answer("...")
 
-@router.message(lambda msg: msg.text and msg.text.startswith("/"))
-async def reset_state_on_any_command(message: Message, state: FSMContext):
-    await state.clear()
-@router.message(lambda msg: msg.text == "❌ Отмена")
-async def cancel(message: Message, state: FSMContext):
-    await state.clear()
-    await message.answer("❌ Операция отменена")
+    await asyncio.sleep(1)
+    await message.answer("Ты не помнишь, как сюда попал.")
 
-@router.message(Command("remind"))
-async def start_reminder_cmd(message: Message, state: FSMContext):
-    await state.clear()
-    await state.set_state(ReminderState.date)
-    await message.answer("Введи дату (пример: 04.05.2002)")    #выбор даты 
-    
+    await asyncio.sleep(2)
+    await message.answer("Но дверь за тобой закрылась.")
 
+    await asyncio.sleep(2)
+    await message.answer("Слишком поздно.")
 
+    await asyncio.sleep(2)
 
-@router.message(lambda msg: msg.text == "⏰ Напомнить")    #старт комнды напоминания 
-async def start_reminder_btn(message: Message, state: FSMContext):
-    await state.clear()
-    await state.set_state(ReminderState.date)
-    await message.answer("📅Введи дату (пример: 04.05.2002)")    #выбор даты 
-   
-
-
-@router.message(ReminderState.date)
-async def get_date(message: Message, state: FSMContext):
-    try:
-        datetime.strptime(message.text, "%d.%m.%Y")
-    except:
-        await message.answer("❌ Неверная дата. Пример: 04.05.2026")
-        return
-
-    await state.update_data(date=message.text)
-    await state.set_state(ReminderState.time)
-
-    await message.answer("Теперь время (пример: 18:30)")   #выбор вренени 
-    
+    await start_game_handler(message, state)
 
     
 
 
-@router.message(ReminderState.time)
-async def get_time(message: Message, state: FSMContext):
-    try:
-        datetime.strptime(message.text, "%H:%M")
-    except:
-        await message.answer("❌ Неверное время. Пример: 18:30")
-        return
 
-    await state.update_data(time=message.text)
-    await state.set_state(ReminderState.text)
+# 🔹 Состояния
+class GameState(StatesGroup):
+    room = State()
+    door = State()
+    mirror = State()
+    end = State()
 
 
-    await message.answer("📝Что напомнить?")
-    
 
-@router.message(ReminderState.text)
-async def save_reminder(message: Message, state: FSMContext):
-    
-    data = await state.get_data()
 
-    try:
-        remind_at = datetime.strptime(
-            f"{data['date']} {data['time']}",
-            "%d.%m.%Y %H:%M"
-        )
-    except:
-        await message.answer("❌ Ошибка даты/времени")
-        return
+# 🔹 Кнопки
+room_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🚪 Дверь"), KeyboardButton(text="🪞 Зеркало")],
+        [KeyboardButton(text="🌑 Осмотреться"), KeyboardButton(text="🎒 Инвентарь")]
+    ],
+    resize_keyboard=True
+)
 
-    add_reminder(
-        user_id=message.from_user.id,
-        text=message.text,
-        remind_at=remind_at
+door_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🔑 Открыть"), KeyboardButton(text="🔙 Назад")]
+    ],
+    resize_keyboard=True
+)
+
+restart_kb = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="🔄 Играть заново")]],
+    resize_keyboard=True
+)
+
+# 🔹 Старт
+@router.message(Command("game"))
+async def start_scene(message: Message, state: FSMContext):
+    await state.set_state(GameState.room)
+    await state.update_data(
+        has_key=False,
+        seen_text=False,
+        loop_count=0
     )
 
+    await message.answer(
+        "...\n\nТы снова просыпаешься.",
+        reply_markup=room_kb
+    )
+
+# 🔹 Комната
+@router.message(GameState.room)
+async def room_handler(message: Message, state: FSMContext):
+    data = await state.get_data()
+
+    if message.text == "👀 Осмотреться":
+        if not data.get("seen_text"):
+            await state.update_data(seen_text=True)
+            await message.answer(
+                "Стены… поцарапаны.\n"
+                "Будто кто-то пытался выбраться.\n\n"
+                "Или ты.",
+                reply_markup=room_kb
+            )
+        else:
+            await message.answer(
+                "Ты уже смотрел.\n"
+                "Ничего не изменилось.\n\n"
+                "Или изменилось?",
+                reply_markup=room_kb
+            )
+
+    elif message.text == "🪞 Зеркало":
+        await state.set_state(GameState.room)
+        await message.answer(
+            "Ты подходишь к зеркалу...\n\n"
+            "Твоё отражение НЕ двигается.",
+            reply_markup=room_kb
+        )
+
+    elif message.text == "🚪 Дверь":
+        await state.set_state(GameState.door)
+        await message.answer(
+            "Дверь слегка приоткрыта.\n"
+            "Ты уверен, что раньше она была закрыта.",
+            reply_markup=door_kb
+        )
+
+    elif message.text == "🎒 Инвентарь":
+        await message.answer("Пусто.\n\nНо ощущение, что что-то потерял.", reply_markup=room_kb)
+
+# 🔹 Зеркало
+@router.message(GameState.mirror)
+async def mirror_handler(message: Message, state: FSMContext):
+    data = await state.get_data()
+
+    if not data.get("has_key"):
+        await state.update_data(has_key=True)
+        await state.set_state(GameState.room)
+
+        await message.answer(
+            "Отражение медленно улыбается...\n"
+            "И поднимает руку.\n\n"
+            "В твоей руке появляется ключ 🔑",
+            reply_markup=room_kb
+        )
+    else:
+        await state.set_state(GameState.end)
+        await message.answer(
+            "Отражение шепчет:\n"
+            "'Ты уже брал это.'\n\n"
+            "Оно тянется к тебе из зеркала.\n\n💀 Концовка",
+            reply_markup=restart_kb
+        )
+
+# 🔹 Дверь
+@router.message(GameState.door)
+async def door_handler(message: Message, state: FSMContext):
+    data = await state.get_data()
+
+    if message.text == "🔑 Открыть":
+        if not data.get("has_key"):
+            await message.answer("Ты чувствуешь, что ключ был.\nНо его нет.", reply_markup=door_kb)
+            return
+
+        loop = data.get("loop_count", 0) + 1
+        await state.update_data(loop_count=loop)
+
+        if loop < 2:
+            await state.set_state(GameState.room)
+            await message.answer(
+                "Ты открываешь дверь...\n\n"
+                "И оказываешься в той же комнате.\n\n"
+                "Что-то не так.",
+                reply_markup=room_kb
+            )
+        else:
+            await state.set_state(GameState.end)
+            await message.answer(
+                "Ты снова открываешь дверь...\n\n"
+                "Но теперь там ты.\n\n"
+                "Он смотрит прямо на тебя.\n\n💀 Истинная концовка",
+                reply_markup=restart_kb
+            )
+
+    elif message.text == "🔙 Назад":
+        await state.set_state(GameState.room)
+        await message.answer("Ты отходишь...\nНо чувствуешь взгляд.", reply_markup=room_kb)
+
+# 🔹 Рестарт
+@router.message(F.text == "🔄 Играть заново")
+async def restart(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("✅ Напоминание сохранено")
-    
-
-
-
-
-from db import get_due_reminders, delete_reminder
-
-
-
+    await start_game_handler(message, state)
 
 
 
@@ -459,4 +548,3 @@ async def users(message: Message):
                     
     await message.answer(text)
 #__________________________________________________________________________________________________
-
