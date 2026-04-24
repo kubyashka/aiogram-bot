@@ -71,7 +71,7 @@ async def get_subscribers():     #получение подписчиков
 main_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📩 Подписаться"), KeyboardButton(text="❌ Отписаться")],
-        [KeyboardButton(text="🔮 Предсказание"), KeyboardButton(text="Угадай число")],
+        [KeyboardButton(text="🔮 Предсказание")],
         [KeyboardButton(text="🙈 Скрыть меню"),KeyboardButton(text="🎮 Игра")]
     ],
     resize_keyboard=True
@@ -292,52 +292,6 @@ async def start(message: Message):
 
 #================================================================================================
 
-#---------------------
-#игра в угадай число
-#----------------------------------------
-@router.message(lambda m: m.text == "Угадай число")
-async def game_btn(message: Message, state: FSMContext):
-    if await state.get_state():
-        await message.answer("Ты уже в игре 😄")
-        return
-    
-
-
-class GuessGame(StatesGroup):
-    playing = State()
-
-@router.message(Command("guess"))
-async def start_guess(message: Message, state: FSMContext):
-    number = random.randint(1, 100)
-
-    await state.update_data(secret_number=number)
-    await state.set_state(GuessGame.playing)
-
-    await message.answer("🎮 Я загадал число от 1 до 100\nПопробуй угадать!")
-
-@router.message(GuessGame.playing)
-async def process_guess(message: Message, state: FSMContext):
-    if not message.text.isdigit():
-        await message.answer("Введи число 😅")
-        return
-
-    guess = int(message.text)
-
-    data = await state.get_data()
-    secret = data["secret_number"]
-
-    if guess < secret:
-        await message.answer("🔼 Больше")
-    elif guess > secret:
-        await message.answer("🔽 Меньше")
-    else:
-        await message.answer("🎉 Угадал! Ты молодец💪")
-        await state.clear()
-
-@router.message(lambda m: m.text.lower() == "стоп")
-async def stop_game(message: Message, state: FSMContext):
-    await state.clear()
-    await message.answer("Игра остановлена ❌")
 
 
 
@@ -350,8 +304,8 @@ async def stop_game(message: Message, state: FSMContext):
 
 @router.message(Command("game"))
 @router.message(F.text == "🎮 Игра")
-async def start_game_handler(message: Message, state: FSMContext):
-    await start_scene(message, state)
+async def start_game(message: Message, state: FSMContext):
+    await state.set_state(GameState.room)
 
     await message.bot.send_chat_action(message.chat.id, "typing")
     await message.answer("...")
@@ -367,7 +321,7 @@ async def start_game_handler(message: Message, state: FSMContext):
 
     await asyncio.sleep(2)
 
-    await start_game_handler(message, state)
+    
 
     
 
@@ -387,7 +341,7 @@ class GameState(StatesGroup):
 room_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🚪 Дверь"), KeyboardButton(text="🪞 Зеркало")],
-        [KeyboardButton(text="🌑 Осмотреться"), KeyboardButton(text="🎒 Инвентарь")]
+        [KeyboardButton(text="👀 Осмотреться"), KeyboardButton(text="🎒 Инвентарь")]
     ],
     resize_keyboard=True
 )
@@ -442,7 +396,7 @@ async def room_handler(message: Message, state: FSMContext):
             )
 
     elif message.text == "🪞 Зеркало":
-        await state.set_state(GameState.room)
+        await state.set_state(GameState.mirror)
         await message.answer(
             "Ты подходишь к зеркалу...\n\n"
             "Твоё отражение НЕ двигается.",
@@ -522,7 +476,7 @@ async def door_handler(message: Message, state: FSMContext):
 @router.message(F.text == "🔄 Играть заново")
 async def restart(message: Message, state: FSMContext):
     await state.clear()
-    await start_game_handler(message, state)
+    await start_game(message, state)
 
 
 
