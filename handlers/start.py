@@ -176,14 +176,17 @@ def get_random_photo():
 # ========================
 
 async def photo_sender(bot: Bot):
-    already_sent = set()
+    last_sent = set()
 
     while True:
         now = datetime.now(tz)
+        today = now.date()
 
         subscribers = await get_subscribers()
 
         for send_time in SEND_TIMES:
+            key = (today, send_time)
+
             send_datetime = now.replace(
                 hour=send_time.hour,
                 minute=send_time.minute,
@@ -191,7 +194,7 @@ async def photo_sender(bot: Bot):
                 microsecond=0
             )
 
-            if 0 <= (now - send_datetime).total_seconds() < 60 and send_time not in already_sent:
+            if 0 <= (now - send_datetime).total_seconds() < 120 and key not in last_sent:
                 
                 
 
@@ -202,10 +205,10 @@ async def photo_sender(bot: Bot):
                     except Exception as e:
                         print("Ошибка:", e)
 
-                already_sent.add(send_time)
+                last_sent.add(send_time)
 
-        if now.hour == 0 and now.minute == 0:
-            already_sent.clear()
+        # очистка по дате
+        last_sent = {k for k in last_sent if k[0] == today}
 
         await asyncio.sleep(10)   #проверяется время каждые 10 секунд
 #===================================================================================================================
@@ -224,14 +227,17 @@ def get_random_phrase():
     return random.choice(PHRASES)
 
 async def phrase_sender(bot: Bot):
-    already_sent = set()
+    last_sent = set()
 
     while True:
         now = datetime.now(tz)
-
+        today = now.date()
+        
         subscribers = await get_subscribers()
 
         for send_time in PHRASE_TIMES:
+            key = (today, send_time)
+            
             send_datetime = now.replace(
                 hour=send_time.hour,
                 minute=send_time.minute,
@@ -239,7 +245,7 @@ async def phrase_sender(bot: Bot):
                 microsecond=0
             )
 
-            if 0 <= (now - send_datetime).total_seconds() < 60 and send_time not in already_sent:
+            if 0 <= (now - send_datetime).total_seconds() < 120 and key not in last_sent:
 
                 print("Отправка фразы!")
 
@@ -251,10 +257,10 @@ async def phrase_sender(bot: Bot):
                     except Exception as e:
                         print("Ошибка:", e)
 
-                already_sent.add(send_time)
+                last_sent.add(send_time)
 
-        if now.hour == 0 and now.minute == 0:
-            already_sent.clear()
+         # очистка по дате
+        last_sent = {k for k in last_sent if k[0] == today}
 
         await asyncio.sleep(10)
 
