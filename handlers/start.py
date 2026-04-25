@@ -205,7 +205,7 @@ async def photo_sender(bot: Bot):
                     except Exception as e:
                         print("Ошибка:", e)
 
-                last_sent.add(send_time)
+                last_sent.add(key)
 
         # очистка по дате
         last_sent = {k for k in last_sent if k[0] == today}
@@ -257,7 +257,7 @@ async def phrase_sender(bot: Bot):
                     except Exception as e:
                         print("Ошибка:", e)
 
-                last_sent.add(send_time)
+                last_sent.add(key)
 
          # очистка по дате
         last_sent = {k for k in last_sent if k[0] == today}
@@ -308,32 +308,7 @@ async def start(message: Message):
 #==================================================================================================
 # 🔹 хоррор игра с сюжетом 
 
-@router.message(Command("game"))
-@router.message(F.text == "🎮 Игра")
-async def start_game(message: Message, state: FSMContext):
-    await state.set_state(GameState.room)
-
-    await message.bot.send_chat_action(message.chat.id, "typing")
-    await message.answer("...")
-
-    await asyncio.sleep(1)
-    await message.answer("Ты не помнишь, как сюда попал.")
-
-    await asyncio.sleep(2)
-    await message.answer("Но дверь за тобой закрылась.")
-
-    await asyncio.sleep(2)
-    await message.answer("Слишком поздно.")
-
-    await asyncio.sleep(2)
-
-    
-
-    
-
-
-
-# 🔹 Состояния
+# 🔹 Состояния игры
 class GameState(StatesGroup):
     room = State()
     door = State()
@@ -341,43 +316,72 @@ class GameState(StatesGroup):
     end = State()
 
 
-
-
-# 🔹 Кнопки
+# 🔹 Кнопки комнаты
 room_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🚪 Дверь"), KeyboardButton(text="🪞 Зеркало")],
-        [KeyboardButton(text="👀 Осмотреться"), KeyboardButton(text="🎒 Инвентарь")]
+        [KeyboardButton(text="👀 Осмотреться"), KeyboardButton(text="🎒 Инвентарь")],
+        [KeyboardButton(text="❌ Выйти из игры")]
     ],
     resize_keyboard=True
 )
 
+# 🔹 Кнопки двери
 door_kb = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="🔑 Открыть"), KeyboardButton(text="🔙 Назад")]
+        [KeyboardButton(text="🔑 Открыть"), KeyboardButton(text="🔙 Назад")],
+        [KeyboardButton(text="❌ Выйти из игры")]
     ],
     resize_keyboard=True
 )
 
+# 🔹 Кнопка рестарта
 restart_kb = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="🔄 Играть заново")]],
+    keyboard=[
+        [KeyboardButton(text="🔄 Играть заново")],
+        [KeyboardButton(text="❌ Выйти из игры")]
+    ],
     resize_keyboard=True
 )
 
-# 🔹 Старт
+
+# 🔹 Старт игры через кнопку И через команду /game
 @router.message(Command("game"))
-async def start_scene(message: Message, state: FSMContext):
+@router.message(F.text == "🎮 Игра")
+@router.message(F.text == "🔄 Играть заново")
+async def start_game(message: Message, state: FSMContext):
+    await state.clear()
+
     await state.set_state(GameState.room)
+
     await state.update_data(
         has_key=False,
         seen_text=False,
         loop_count=0
     )
 
+    await message.bot.send_chat_action(message.chat.id, "typing")
+
+    await message.answer("...")
+    await asyncio.sleep(1)
+
+    await message.answer("Ты не помнишь, как сюда попал.")
+    await asyncio.sleep(2)
+
+    await message.answer("Но дверь за тобой закрылась.")
+    await asyncio.sleep(2)
+
+    await message.answer("Слишком поздно.")
+    await asyncio.sleep(2)
+
     await message.answer(
-        "...\n\nТы снова просыпаешься.",
+        "Ты стоишь в холодной комнате.\n\n"
+        "Перед тобой дверь.\n"
+        "Слева висит старое зеркало.\n\n"
+        "Что будешь делать?",
         reply_markup=room_kb
     )
+
 
 # 🔹 Комната
 @router.message(GameState.room)
@@ -418,12 +422,28 @@ async def room_handler(message: Message, state: FSMContext):
         )
 
     elif message.text == "🎒 Инвентарь":
-        await message.answer("Пусто.\n\nНо ощущение, что что-то потерял.", reply_markup=room_kb)
+        if data.get("has_key"):
+            await message.answer("В инвентаре лежит старый ключ 🔑", reply_markup=room_kb)
+        else:
+            await message.answer("Пусто.\n\nНо ощущение, что что-то потерял.", reply_markup=room_kb)
+
+    elif message.text == "❌ Выйти из игры":
+        await state.clear()
+        await message.answer("Ты вышел из игры.", reply_markup=main_kb)
+
+    else:
+        await message.answer("Выбери действие кнопкой 👇", reply_markup=room_kb)
+
 
 # 🔹 Зеркало
 @router.message(GameState.mirror)
 async def mirror_handler(message: Message, state: FSMContext):
     data = await state.get_data()
+
+    if message.text == "❌ Выйти из игры":
+        await state.clear()
+        await message.answer("Ты вышел из игры.", reply_markup=main_kb)
+        return
 
     if not data.get("has_key"):
         await state.update_data(has_key=True)
@@ -440,9 +460,11 @@ async def mirror_handler(message: Message, state: FSMContext):
         await message.answer(
             "Отражение шепчет:\n"
             "'Ты уже брал это.'\n\n"
-            "Оно тянется к тебе из зеркала.\n\n💀 Концовка",
+            "Оно тянется к тебе из зеркала.\n\n"
+            "💀 Концовка: зеркало забрало тебя.",
             reply_markup=restart_kb
         )
+
 
 # 🔹 Дверь
 @router.message(GameState.door)
@@ -451,7 +473,11 @@ async def door_handler(message: Message, state: FSMContext):
 
     if message.text == "🔑 Открыть":
         if not data.get("has_key"):
-            await message.answer("Ты чувствуешь, что ключ был.\nНо его нет.", reply_markup=door_kb)
+            await message.answer(
+                "Ты чувствуешь, что ключ был.\n"
+                "Но его нет.",
+                reply_markup=door_kb
+            )
             return
 
         loop = data.get("loop_count", 0) + 1
@@ -470,19 +496,40 @@ async def door_handler(message: Message, state: FSMContext):
             await message.answer(
                 "Ты снова открываешь дверь...\n\n"
                 "Но теперь там ты.\n\n"
-                "Он смотрит прямо на тебя.\n\n💀 Истинная концовка",
+                "Он смотрит прямо на тебя.\n\n"
+                "💀 Истинная концовка.",
                 reply_markup=restart_kb
             )
 
     elif message.text == "🔙 Назад":
         await state.set_state(GameState.room)
-        await message.answer("Ты отходишь...\nНо чувствуешь взгляд.", reply_markup=room_kb)
+        await message.answer(
+            "Ты отходишь...\n"
+            "Но чувствуешь взгляд.",
+            reply_markup=room_kb
+        )
 
-# 🔹 Рестарт
-@router.message(F.text == "🔄 Играть заново")
-async def restart(message: Message, state: FSMContext):
-    await state.clear()
-    await start_game(message, state)
+    elif message.text == "❌ Выйти из игры":
+        await state.clear()
+        await message.answer("Ты вышел из игры.", reply_markup=main_kb)
+
+    else:
+        await message.answer("Выбери действие кнопкой 👇", reply_markup=door_kb)
+
+
+# 🔹 Конец игры
+@router.message(GameState.end)
+async def end_handler(message: Message, state: FSMContext):
+    if message.text == "🔄 Играть заново":
+        await start_game(message, state)
+
+    elif message.text == "❌ Выйти из игры":
+        await state.clear()
+        await message.answer("Ты вышел из игры.", reply_markup=main_kb)
+
+    else:
+        await message.answer("Игра закончена. Хочешь начать заново?", reply_markup=restart_kb)
+
 
 
 
