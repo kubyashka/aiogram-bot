@@ -17,6 +17,9 @@ from fastapi import FastAPI  #что б сервер не засыпал
 import threading   #чтоб сервер не засыпал
 import uvicorn    #чтоб сервер не засыпал
 
+
+
+
 load_dotenv()    #будет доставлять из секретного .env
 TOKEN = getenv('BOT_TOKEN')
 
@@ -43,8 +46,8 @@ async def main():
     
     init_db()    #типо база данных что ли 
     dp.include_router(router)    #диспетчер значет регулировщика втор 
-    
-
+ 
+    await bot.delete_webhook(drop_pending_updates=True)
 
     load_photos()       #загружает фото в память бота 
     print("Бот запущен🚀")
@@ -54,7 +57,6 @@ async def main():
     asyncio.create_task(photo_sender(bot)) # отправляет фото пользователям 
     
     await dp.start_polling(bot)   #запуск
-    
     
 
 if __name__ == '__main__':                       #запуск
