@@ -1,7 +1,7 @@
 
 #фоновая задача 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 #from db import get_due_reminders, delete_reminder
 from db import get_subscribers, already_sent_today, mark_sent
 import random
@@ -100,44 +100,39 @@ PREDICTIONS = [
 async def prediction_worker(bot):
     while True:
         now = datetime.now(tz)
-        today = now.strftime("%Y-%m-%d")
+        target = now.replace(hour=9, minute=0, second=0, microsecond=0)
 
-        if now.hour == 9 and now.minute == 0:
+        if now >= target:
+            target += timedelta(days=1)
 
-            subs = get_subscribers()
+        wait = (target - now).total_seconds()
 
-            for user_id in subs:
 
-                # защита от повторной отправки
-                if already_sent_today(user_id, today):
-                    continue
+        await asyncio.sleep(wait)
 
+        today = datetime.now(tz).strftime("%Y-%m-%d")
+
+        subs = get_subscribers()  # или await если async
+
+        for user_id in subs:
+            try:
+                text = random.choice(PREDICTIONS)
+            
                 try:
-                    if not PREDICTIONS:
-                        logging.error("PREDICTIONS is empty!")
-                        continue
+                    chat = await bot.get_chat(user_id)
+                    username = chat.first_name or "друг"
+                except:
+                    username = "друг"
 
-                    text = random.choice(PREDICTIONS)
+                message = f"Доброе утро , {username} ✨\n\n{text}"
 
-                    try:
-                        chat = await bot.get_chat(user_id)
-                        username = chat.first_name or "друг"
-                    except Exception as e:
-                        logging.warning(f"get_chat failed for {user_id}: {e}")
-                        username = "друг"
+                await bot.send_message(user_id, text)
+                
 
-                    message = f"Доброе утро , {username} ✨\n\n{text}"
+                mark_sent(user_id, today)
 
-                    await bot.send_message(user_id, message)
-
-                    mark_sent(user_id, today)
-
-                except Exception as e:
-                    logging.error(f"Send failed for {user_id}: {e}")
-
-            await asyncio.sleep(60)
-
-        await asyncio.sleep(5)    
+            except Exception as e:
+                logging.error(f"Ошибка отправки {user_id}: {e}")
     
 
 
