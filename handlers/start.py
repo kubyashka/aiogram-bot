@@ -308,6 +308,47 @@ async def start(message: Message):
 #==================================================================================================
 # 🔹 хоррор игра с сюжетом 
 
+GAME_PHOTO_PATH = "game_photo"
+
+# 🔹 Поиск фото
+def get_game_photo(name: str):
+    for ext in ["jpg", "jpeg", "png", "webp"]:
+        path = os.path.join(GAME_PHOTO_PATH, f"{name}.{ext}")
+        if os.path.exists(path):
+            return FSInputFile(path)
+    return None
+
+
+# 🔹 Отправка фото + текста
+async def send_scene(message: Message, photo_name: str, text: str, reply_markup=None):
+    photo = get_game_photo(photo_name)
+
+    if photo:
+        await message.answer_photo(
+            photo=photo,
+            caption=text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
+    else:
+        await message.answer(
+            text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 🔹 Состояния игры
 class GameState(StatesGroup):
     room = State()
@@ -362,25 +403,28 @@ async def start_game(message: Message, state: FSMContext):
 
     await message.bot.send_chat_action(message.chat.id, "typing")
 
-    await message.answer("...")
+    await message.answer("<code>...</code>", parse_mode="HTML")
     await asyncio.sleep(1)
 
-    await message.answer("Ты не помнишь, как сюда попал.")
+    await message.answer("<i>Ты не помнишь, как сюда попал.</i>", parse_mode="HTML")
     await asyncio.sleep(2)
 
-    await message.answer("Но дверь за тобой закрылась.")
+    await message.answer("<i>Но дверь за тобой закрылась.</i>", parse_mode="HTML")
     await asyncio.sleep(2)
 
-    await message.answer("Слишком поздно.")
+    await message.answer("<b>Слишком поздно.</b>", parse_mode="HTML")
     await asyncio.sleep(2)
 
-    await message.answer(
-        "Ты стоишь в холодной комнате.\n\n"
+    await send_scene(
+        message,
+        "room",
+        "☾ <b>Ты стоишь в холодной комнате.</b>\n\n"
         "Перед тобой дверь.\n"
         "Слева висит старое зеркало.\n\n"
-        "Что будешь делать?",
+        "<i>Что будешь делать?</i>",
         reply_markup=room_kb
     )
+
 
 
 # 🔹 Комната
@@ -391,41 +435,61 @@ async def room_handler(message: Message, state: FSMContext):
     if message.text == "👀 Осмотреться":
         if not data.get("seen_text"):
             await state.update_data(seen_text=True)
-            await message.answer(
-                "Стены… поцарапаны.\n"
+            await send_scene(
+                message,
+                "room",
+                "☾ <b>Стены… поцарапаны.</b>\n"
                 "Будто кто-то пытался выбраться.\n\n"
-                "Или ты.",
+                "<i>Или ты.</i>",
                 reply_markup=room_kb
             )
         else:
-            await message.answer(
-                "Ты уже смотрел.\n"
+            await send_scene(
+                message,
+                "room",
+                "☾ <b>Ты уже смотрел.</b>\n"
                 "Ничего не изменилось.\n\n"
-                "Или изменилось?",
+                "<i>Или изменилось?</i>",
                 reply_markup=room_kb
             )
-
     elif message.text == "🪞 Зеркало":
         await state.set_state(GameState.mirror)
-        await message.answer(
-            "Ты подходишь к зеркалу...\n\n"
-            "Твоё отражение НЕ двигается.",
+        
+        await send_scene(
+            message,
+            "mirror",
+            "☾ <b>Ты подходишь к зеркалу...</b>\n\n"
+            "Твоё отражение <b>НЕ двигается</b>.",
             reply_markup=room_kb
         )
 
+
     elif message.text == "🚪 Дверь":
         await state.set_state(GameState.door)
-        await message.answer(
-            "Дверь слегка приоткрыта.\n"
+        await send_scene(
+            message,
+            "door",
+            "☾ <b>Дверь слегка приоткрыта.</b>\n\n"
             "Ты уверен, что раньше она была закрыта.",
             reply_markup=door_kb
         )
 
     elif message.text == "🎒 Инвентарь":
         if data.get("has_key"):
-            await message.answer("В инвентаре лежит старый ключ 🔑", reply_markup=room_kb)
+            await send_scene(
+                message,
+                "key",
+                "☾ В инвентаре лежит <b>старый ключ</b> 🔑\n\n"
+                "<i>Он холодный. Слишком холодный.</i>",
+                reply_markup=room_kb
+            )
         else:
-            await message.answer("Пусто.\n\nНо ощущение, что что-то потерял.", reply_markup=room_kb)
+            await message.answer(
+                "☾ <b>Пусто.</b>\n\n"
+                "<i>Но ощущение, что ты что-то потерял.</i>",
+                reply_markup=room_kb,
+                parse_mode="HTML"
+            )
 
     elif message.text == "❌ Выйти из игры":
         await state.clear()
@@ -449,22 +513,28 @@ async def mirror_handler(message: Message, state: FSMContext):
         await state.update_data(has_key=True)
         await state.set_state(GameState.room)
 
-        await message.answer(
-            "Отражение медленно улыбается...\n"
-            "И поднимает руку.\n\n"
-            "В твоей руке появляется ключ 🔑",
+        await send_scene(
+            message,
+            "key",
+            "☾ <b>Отражение медленно улыбается...</b>\n\n"
+            "Оно поднимает руку.\n"
+            "Ты не двигаешься.\n\n"
+            "Но в твоей руке появляется <b>ключ</b> 🔑",
             reply_markup=room_kb
         )
+
     else:
         await state.set_state(GameState.end)
-        await message.answer(
-            "Отражение шепчет:\n"
-            "'Ты уже брал это.'\n\n"
+
+        await send_scene(
+            message,
+            "mirror2",
+            "☾ <b>Отражение шепчет:</b>\n"
+            "<code>Ты уже брал это.</code>\n\n"
             "Оно тянется к тебе из зеркала.\n\n"
-            "💀 Концовка: зеркало забрало тебя.",
+            "💀 <b>Концовка: зеркало забрало тебя.</b>",
             reply_markup=restart_kb
         )
-
 
 # 🔹 Дверь
 @router.message(GameState.door)
@@ -473,9 +543,12 @@ async def door_handler(message: Message, state: FSMContext):
 
     if message.text == "🔑 Открыть":
         if not data.get("has_key"):
-            await message.answer(
-                "Ты чувствуешь, что ключ был.\n"
-                "Но его нет.",
+            await send_scene(
+                message,
+                "door",
+                "☾ <b>Ты чувствуешь, что ключ был.</b>\n\n"
+                "Но его нет.\n\n"
+                "<i>Может, он смотрит на тебя?</i>",
                 reply_markup=door_kb
             )
             return
@@ -485,26 +558,34 @@ async def door_handler(message: Message, state: FSMContext):
 
         if loop < 2:
             await state.set_state(GameState.room)
-            await message.answer(
-                "Ты открываешь дверь...\n\n"
+            await send_scene(
+                message,
+                "room",
+                "☾ <b>Ты открываешь дверь...</b>\n\n"
                 "И оказываешься в той же комнате.\n\n"
-                "Что-то не так.",
+                "<code>Что-то не так.</code>",
                 reply_markup=room_kb
             )
         else:
             await state.set_state(GameState.end)
-            await message.answer(
-                "Ты снова открываешь дверь...\n\n"
-                "Но теперь там ты.\n\n"
-                "Он смотрит прямо на тебя.\n\n"
-                "💀 Истинная концовка.",
+
+            await send_scene(
+                message,
+                "end",
+                "☾ <b>Ты снова открываешь дверь...</b>\n\n"
+                "Но теперь там стоишь ты.\n\n"
+                "Он смотрит прямо на тебя.\n"
+                "И улыбается раньше, чем ты.\n\n"
+                "💀 <b>Истинная концовка.</b>",
                 reply_markup=restart_kb
             )
 
     elif message.text == "🔙 Назад":
         await state.set_state(GameState.room)
-        await message.answer(
-            "Ты отходишь...\n"
+        await send_scene(
+            message,
+            "room",
+            "☾ <b>Ты отходишь...</b>\n\n"
             "Но чувствуешь взгляд.",
             reply_markup=room_kb
         )
@@ -528,8 +609,12 @@ async def end_handler(message: Message, state: FSMContext):
         await message.answer("Ты вышел из игры.", reply_markup=main_kb)
 
     else:
-        await message.answer("Игра закончена. Хочешь начать заново?", reply_markup=restart_kb)
-
+        await message.answer(
+            "☾ <b>Игра закончена.</b>\n\n"
+            "<i>Хочешь начать заново?</i>",
+            reply_markup=restart_kb,
+            parse_mode="HTML"
+        )
 
 
 

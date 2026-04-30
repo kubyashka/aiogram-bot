@@ -1,68 +1,71 @@
 #база данных для напоминалки , чтоб бот запоминал 
 import os
-import psycopg2
-from dotenv import load_dotenv
+import aiosqlite
 
-load_dotenv()
+DB_NAME = "bot.db"
 
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-conn = psycopg2.connect(DATABASE_URL)
-cur = conn.cursor()
 
 # ---------------- INIT DB ----------------
-def init_db():
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS subscribers (
-            user_id BIGINT PRIMARY KEY
-        )
-    """)
+async def init_db():
+    async with aiosqlite.connect(DB_NAME) as db:
 
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS subscribers (
+                user_id INTEGER PRIMARY KEY
+            )
+        """)
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS sent_predictions (
-            user_id BIGINT,
-            date TEXT,
-            PRIMARY KEY (user_id, date)
-        )
-    """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS sent_predictions (
+                user_id INTEGER,
+                date TEXT,
+                PRIMARY KEY (user_id, date)
+            )
+        """)
 
-    conn.commit()
+        await db.commit()
+
 
 # ---------------- SUBSCRIBERS ----------------
-def subscribe_user(user_id):
-    cur.execute("""
-        INSERT INTO subscribers (user_id)
-        VALUES (%s)
-        ON CONFLICT DO NOTHING
-    """, (user_id,))
-    conn.commit()
+async def subscribe_user(user_id: int):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("""
+            INSERT OR IGNORE INTO subscribers (user_id)
+            VALUES (?)
+        """, (user_id,))
+        await db.commit()
 
-def unsubscribe_user(user_id):
-    cur.execute("""
-        DELETE FROM subscribers WHERE user_id = %s
-    """, (user_id,))
-    conn.commit()
 
-def get_subscribers():
-    cur.execute("SELECT user_id FROM subscribers")
-    return [row[0] for row in cur.fetchall()]
+async def unsubscribe_user(user_id: int):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("""
+            DELETE FROM subscribers WHERE user_id = ?
+        """, (user_id,))
+        await db.commit()
 
+
+async def get_subscribers():
+    async with aiosqlite.connect(DB_NAME) as db:
+        cursor = await db.execute("SELECT user_id FROM subscribers")
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
 
 
 # ---------------- PREDICTIONS ----------------
-def already_sent_today(user_id, date):
-    cur.execute("""
-        SELECT 1 FROM sent_predictions
-        WHERE user_id = %s AND date = %s
-    """, (user_id, date))
-    return cur.fetchone() is not None
+async def already_sent_today(user_id: int, date: str):
+    async with aiosqlite.connect(DB_NAME) as db:
+        cursor = await db.execute("""
+            SELECT 1 FROM sent_predictions
+            WHERE user_id = ? AND date = ?
+        """, (user_id, date))
 
-def mark_sent(user_id, date):
-    cur.execute("""
-        INSERT INTO sent_predictions (user_id, date)
-        VALUES (%s, %s)
-        ON CONFLICT DO NOTHING
-    """, (user_id, date))
-    conn.commit()
+        return await cursor.fetchone() is not None
+
+
+async def mark_sent(user_id: int, date: str):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("""
+            INSERT OR IGNORE INTO sent_predictions (user_id, date)
+            VALUES (?, ?)
+        """, (user_id, date))
+        await db.commit()
